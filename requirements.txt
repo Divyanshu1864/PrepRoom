@@ -1,0 +1,44 @@
+# PrepRoom Project Requirements
+
+## System Prerequisites
+- Node.js >= 18.x
+- npm >= 9.x or yarn/pnpm/bun
+- PostgreSQL database instance
+
+## Node.js & Next.js Core Dependencies (package.json)
+- next: 16.2.9
+- react: 19.2.4
+- react-dom: 19.2.4
+- next-auth: ^4.24.14
+- @prisma/client: ^6.19.3
+- bcrypt: ^6.0.0
+- zod: ^4.4.3
+
+## Styling & UI Components
+- tailwindcss: ^4
+- postcss: ^4
+- shadcn: ^4.11.0
+- lucide-react: ^1.17.0
+- sonner: ^2.0.7
+- clsx: ^2.1.1
+- class-variance-authority: ^0.7.1
+- tailwind-merge: ^3.6.0
+
+## Developer Tools
+- prisma: ^6.19.3
+- typescript: ^5
+- eslint: ^9
+- @types/bcrypt: ^6.0.0
+- @types/node: ^20
+- @types/react: ^19
+- @types/react-dom: ^19
+
+## Commands to Run the Application
+1. Install node modules:
+   $ npm install
+
+2. Run Database Migrations:
+   $ npx prisma migrate dev
+
+3. Start the Development Server:
+   $ npm run dev

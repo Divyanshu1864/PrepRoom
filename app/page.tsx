@@ -31,7 +31,7 @@ export default function Home() {
             <div className="rounded-lg border bg-background p-3">Room chat</div>
             <div className="rounded-lg border bg-background p-3">Interview-ready workflows</div>
           </div>
-        </div>
+        </CardContent>
       </Card>
     </main>
   );

@@ -45,6 +45,7 @@ model User {
   sessions      Session[]
   ownedRooms    Room[]     @relation("RoomOwner")
   participants  Participant[]
+  messages      Message[]
 }
 
 model VerificationToken {
@@ -70,6 +71,7 @@ model Room {
   owner       User          @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   participants Participant[]
   problems    Problem[]
+  messages    Message[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -94,4 +96,14 @@ model Problem {
   room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  roomId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
