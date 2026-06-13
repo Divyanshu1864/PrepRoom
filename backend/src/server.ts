@@ -12,6 +12,7 @@ import authRouter from "./routes/auth";
 import roomsRouter from "./routes/rooms";
 import executeRouter from "./routes/execute";
 import { escapeHtml } from "./utils/sanitize";
+import path from "path";
 
 const PORT = process.env.PORT || 5000;
 const prisma = new PrismaClient();
@@ -33,10 +34,21 @@ app.use("/api/auth", authRouter);
 app.use("/api/rooms", roomsRouter);
 app.use("/api/execute", executeRouter);
 
-// Base Route
-app.get("/", (req, res) => {
-  res.send("PrepRoom API is running.");
-});
+// Serve static assets in production
+if (process.env.NODE_ENV === "production") {
+  const distPath = path.join(__dirname, "../../frontend/dist");
+  app.use(express.static(distPath));
+  app.get("*", (req, res) => {
+    if (!req.path.startsWith("/api")) {
+      res.sendFile(path.join(distPath, "index.html"));
+    }
+  });
+} else {
+  // Base Route
+  app.get("/", (req, res) => {
+    res.send("PrepRoom API is running.");
+  });
+}
 
 // Create base HTTP Server
 const httpServer = createServer(app);

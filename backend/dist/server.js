@@ -16,6 +16,7 @@ const auth_1 = __importDefault(require("./routes/auth"));
 const rooms_1 = __importDefault(require("./routes/rooms"));
 const execute_1 = __importDefault(require("./routes/execute"));
 const sanitize_1 = require("./utils/sanitize");
+const path_1 = __importDefault(require("path"));
 const PORT = process.env.PORT || 5000;
 const prisma = new client_1.PrismaClient();
 const app = (0, express_1.default)();
@@ -30,10 +31,22 @@ app.use((0, cookie_parser_1.default)());
 app.use("/api/auth", auth_1.default);
 app.use("/api/rooms", rooms_1.default);
 app.use("/api/execute", execute_1.default);
-// Base Route
-app.get("/", (req, res) => {
-    res.send("PrepRoom API is running.");
-});
+// Serve static assets in production
+if (process.env.NODE_ENV === "production") {
+    const distPath = path_1.default.join(__dirname, "../../frontend/dist");
+    app.use(express_1.default.static(distPath));
+    app.get("*", (req, res) => {
+        if (!req.path.startsWith("/api")) {
+            res.sendFile(path_1.default.join(distPath, "index.html"));
+        }
+    });
+}
+else {
+    // Base Route
+    app.get("/", (req, res) => {
+        res.send("PrepRoom API is running.");
+    });
+}
 // Create base HTTP Server
 const httpServer = (0, http_1.createServer)(app);
 // 1. Socket.io Configuration (Chat & Active Presence)
