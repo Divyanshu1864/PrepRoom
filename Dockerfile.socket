@@ -1,0 +1,17 @@
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+# Copy Prisma schema to generate database clients inside the container
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# Copy code and typescript config
+COPY socket-server.ts tsconfig.json ./
+
+EXPOSE 3001
+ENV SOCKET_PORT=3001
+
+CMD ["npx", "ts-node", "-O", "{\"module\": \"commonjs\"}", "socket-server.ts"]
