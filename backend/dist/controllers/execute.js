@@ -33,17 +33,35 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = require("express");
-const authController = __importStar(require("../controllers/auth"));
-const auth_1 = require("../middleware/auth");
-const rate_limit_1 = require("../middleware/rate-limit");
-const router = (0, express_1.Router)();
-// POST /api/auth/register
-router.post("/register", (0, rate_limit_1.rateLimiter)({ windowMs: 3600000, max: 10, message: "Too many registrations. Please try again in an hour." }), authController.register);
-// POST /api/auth/login
-router.post("/login", authController.login);
-// POST /api/auth/logout
-router.post("/logout", authController.logout);
-// GET /api/auth/me
-router.get("/me", auth_1.requireAuth, authController.getCurrentUser);
-exports.default = router;
+exports.execute = void 0;
+const zod_1 = require("zod");
+const executeService = __importStar(require("../services/execute"));
+const executeSchema = zod_1.z.object({
+    sourceCode: zod_1.z.string().min(1),
+    language: zod_1.z.string(),
+});
+/**
+ * Handles incoming sandbox code compilation and run requests.
+ */
+const execute = async (req, res) => {
+    try {
+        const parsed = executeSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ message: "Invalid payload.", errors: parsed.error.flatten() });
+        }
+        const { sourceCode, language } = parsed.data;
+        const result = await executeService.executeCode(sourceCode, language);
+        return res.status(200).json(result);
+    }
+    catch (error) {
+        if (error.code === "UNSUPPORTED_LANGUAGE") {
+            return res.status(400).json({ message: error.message });
+        }
+        if (error.code === "SANDBOX_ERROR") {
+            return res.status(502).json({ message: error.message });
+        }
+        console.error("Execute controller error:", error);
+        return res.status(500).json({ message: "Unexpected server error." });
+    }
+};
+exports.execute = execute;
