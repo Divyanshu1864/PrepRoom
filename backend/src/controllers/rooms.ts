@@ -1,7 +1,8 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import * as roomsService from "../services/rooms";
 import { escapeHtml } from "../utils/sanitize";
+import { AppError } from "../utils/errors";
 
 const createRoomSchema = z.object({
   title: z.string().min(2).max(100),
@@ -11,113 +12,101 @@ const createRoomSchema = z.object({
 /**
  * Creates a collaborative room.
  */
-export const create = async (req: Request, res: Response) => {
+export const create = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const parsed = createRoomSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ message: "Invalid payload.", errors: parsed.error.flatten() });
-    }
-
-    const { title, description } = parsed.data;
+    const { title, description } = createRoomSchema.parse(req.body);
     const sanitizedTitle = escapeHtml(title);
     const sanitizedDescription = description ? escapeHtml(description) : null;
     const userId = req.user!.id;
 
     const room = await roomsService.createRoom(userId, sanitizedTitle, sanitizedDescription);
-    return res.status(201).json({ room });
+    return res.success({ room }, "Room created successfully.", 201);
   } catch (error) {
-    console.error("Create room controller error:", error);
-    return res.status(500).json({ message: "Unexpected server error." });
+    next(error);
   }
 };
 
 /**
  * Lists all rooms the user is participating in.
  */
-export const list = async (req: Request, res: Response) => {
+export const list = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
     const { search } = req.query;
 
     const rooms = await roomsService.listRooms(userId, search ? String(search) : undefined);
-    return res.status(200).json({ rooms });
+    return res.success({ rooms });
   } catch (error) {
-    console.error("List rooms controller error:", error);
-    return res.status(500).json({ message: "Unexpected server error." });
+    next(error);
   }
 };
 
 /**
  * Gets details of a single room.
  */
-export const getDetails = async (req: Request, res: Response) => {
+export const getDetails = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { roomId } = req.params;
     const userId = req.user!.id;
 
     const room = await roomsService.findRoomById(roomId);
     if (!room) {
-      return res.status(404).json({ message: "Room not found." });
+      throw new AppError("Room not found.", 404);
     }
 
     const isOwner = room.ownerId === userId;
     const isParticipant = room.participants.some((p) => p.userId === userId);
 
     if (!isOwner && !isParticipant) {
-      return res.status(403).json({ message: "Forbidden. You are not a participant in this room." });
+      throw new AppError("Forbidden. You are not a participant in this room.", 403);
     }
 
-    return res.status(200).json({ room });
+    return res.success({ room });
   } catch (error) {
-    console.error("Get details controller error:", error);
-    return res.status(500).json({ message: "Unexpected server error." });
+    next(error);
   }
 };
 
 /**
  * Joins a user to a room.
  */
-export const join = async (req: Request, res: Response) => {
+export const join = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { roomId } = req.params;
     const userId = req.user!.id;
 
     const result = await roomsService.joinRoom(userId, roomId);
     if (result.alreadyJoined) {
-      return res.status(200).json({ message: "You are already a participant in this room." });
+      return res.success(null, "You are already a participant in this room.");
     }
 
-    return res.status(201).json({ message: "Joined room successfully." });
-  } catch (error: any) {
-    if (error.code === "ROOM_NOT_FOUND") {
-      return res.status(404).json({ message: error.message });
-    }
-    console.error("Join room controller error:", error);
-    return res.status(500).json({ message: "Unexpected server error." });
+    return res.success(null, "Joined room successfully.", 201);
+  } catch (error) {
+    next(error);
   }
 };
 
 /**
  * Deletes a room if ownership is verified.
  */
-export const deleteRoom = async (req: Request, res: Response) => {
+export const deleteRoom = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { roomId } = req.params;
     const userId = req.user!.id;
 
     const room = await roomsService.findRoomById(roomId);
     if (!room) {
-      return res.status(404).json({ message: "Room not found." });
+      throw new AppError("Room not found.", 404);
     }
 
     if (room.ownerId !== userId) {
-      return res.status(403).json({ message: "Forbidden. Only the owner can delete this room." });
+      throw new AppError("Forbidden. Only the owner can delete this room.", 403);
     }
 
     await roomsService.deleteRoom(roomId);
-    return res.status(200).json({ message: "Room deleted successfully." });
+    return res.success(null, "Room deleted successfully.");
   } catch (error) {
-    console.error("Delete room controller error:", error);
-    return res.status(500).json({ message: "Unexpected server error." });
+    next(error);
   }
 };
+

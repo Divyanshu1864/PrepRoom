@@ -17,6 +17,8 @@ const rooms_1 = __importDefault(require("./routes/rooms"));
 const execute_1 = __importDefault(require("./routes/execute"));
 const sanitize_1 = require("./utils/sanitize");
 const path_1 = __importDefault(require("path"));
+const response_1 = require("./middleware/response");
+const error_1 = require("./middleware/error");
 const PORT = process.env.PORT || 5000;
 const prisma = new client_1.PrismaClient();
 const app = (0, express_1.default)();
@@ -27,6 +29,7 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json());
 app.use((0, cookie_parser_1.default)());
+app.use(response_1.responseMiddleware);
 // HTTP Route Handlers
 app.use("/api/auth", auth_1.default);
 app.use("/api/rooms", rooms_1.default);
@@ -47,6 +50,8 @@ else {
         res.send("PrepRoom API is running.");
     });
 }
+// Global Error Handler
+app.use(error_1.errorHandler);
 // Create base HTTP Server
 const httpServer = (0, http_1.createServer)(app);
 // 1. Socket.io Configuration (Chat & Active Presence)

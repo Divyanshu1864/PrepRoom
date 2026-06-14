@@ -43,25 +43,14 @@ const executeSchema = zod_1.z.object({
 /**
  * Handles incoming sandbox code compilation and run requests.
  */
-const execute = async (req, res) => {
+const execute = async (req, res, next) => {
     try {
-        const parsed = executeSchema.safeParse(req.body);
-        if (!parsed.success) {
-            return res.status(400).json({ message: "Invalid payload.", errors: parsed.error.flatten() });
-        }
-        const { sourceCode, language } = parsed.data;
+        const { sourceCode, language } = executeSchema.parse(req.body);
         const result = await executeService.executeCode(sourceCode, language);
-        return res.status(200).json(result);
+        return res.success(result);
     }
     catch (error) {
-        if (error.code === "UNSUPPORTED_LANGUAGE") {
-            return res.status(400).json({ message: error.message });
-        }
-        if (error.code === "SANDBOX_ERROR") {
-            return res.status(502).json({ message: error.message });
-        }
-        console.error("Execute controller error:", error);
-        return res.status(500).json({ message: "Unexpected server error." });
+        next(error);
     }
 };
 exports.execute = execute;

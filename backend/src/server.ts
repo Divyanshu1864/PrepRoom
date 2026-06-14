@@ -13,6 +13,8 @@ import roomsRouter from "./routes/rooms";
 import executeRouter from "./routes/execute";
 import { escapeHtml } from "./utils/sanitize";
 import path from "path";
+import { responseMiddleware } from "./middleware/response";
+import { errorHandler } from "./middleware/error";
 
 const PORT = process.env.PORT || 5000;
 const prisma = new PrismaClient();
@@ -28,6 +30,7 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+app.use(responseMiddleware);
 
 // HTTP Route Handlers
 app.use("/api/auth", authRouter);
@@ -49,6 +52,9 @@ if (process.env.NODE_ENV === "production") {
     res.send("PrepRoom API is running.");
   });
 }
+
+// Global Error Handler
+app.use(errorHandler);
 
 // Create base HTTP Server
 const httpServer = createServer(app);

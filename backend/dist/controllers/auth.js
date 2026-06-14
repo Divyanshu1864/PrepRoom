@@ -57,52 +57,30 @@ const setAuthCookie = (res, token) => {
 /**
  * Handles user signup requests.
  */
-const register = async (req, res) => {
+const register = async (req, res, next) => {
     try {
-        const parsed = registerSchema.safeParse(req.body);
-        if (!parsed.success) {
-            return res.status(400).json({ message: "Invalid registration payload.", errors: parsed.error.flatten() });
-        }
-        const { name, email, password } = parsed.data;
+        const { name, email, password } = registerSchema.parse(req.body);
         const result = await authService.registerUser(name, email, password);
         setAuthCookie(res, result.token);
-        return res.status(201).json({
-            message: "Account created successfully.",
-            user: result.user,
-        });
+        return res.success({ user: result.user }, "Account created successfully.", 201);
     }
     catch (error) {
-        if (error.code === "EMAIL_IN_USE") {
-            return res.status(409).json({ message: error.message });
-        }
-        console.error("Register controller error:", error);
-        return res.status(500).json({ message: "Unexpected server error." });
+        next(error);
     }
 };
 exports.register = register;
 /**
  * Handles signin credentials authentication.
  */
-const login = async (req, res) => {
+const login = async (req, res, next) => {
     try {
-        const parsed = loginSchema.safeParse(req.body);
-        if (!parsed.success) {
-            return res.status(400).json({ message: "Invalid login credentials." });
-        }
-        const { email, password } = parsed.data;
+        const { email, password } = loginSchema.parse(req.body);
         const result = await authService.authenticateUser(email, password);
         setAuthCookie(res, result.token);
-        return res.status(200).json({
-            message: "Logged in successfully.",
-            user: result.user,
-        });
+        return res.success({ user: result.user }, "Logged in successfully.");
     }
     catch (error) {
-        if (error.code === "INVALID_CREDENTIALS") {
-            return res.status(401).json({ message: error.message });
-        }
-        console.error("Login controller error:", error);
-        return res.status(500).json({ message: "Unexpected server error." });
+        next(error);
     }
 };
 exports.login = login;
@@ -115,13 +93,13 @@ const logout = (req, res) => {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
     });
-    return res.status(200).json({ message: "Logged out successfully." });
+    return res.success(null, "Logged out successfully.");
 };
 exports.logout = logout;
 /**
  * Handles current session profile details retrieval.
  */
 const getCurrentUser = (req, res) => {
-    return res.status(200).json({ user: req.user });
+    return res.success({ user: req.user });
 };
 exports.getCurrentUser = getCurrentUser;
