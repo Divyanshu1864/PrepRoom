@@ -56,6 +56,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
+    const { search } = req.query;
 
     const rooms = await prisma.room.findMany({
       where: {
@@ -64,6 +65,12 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
             userId,
           },
         },
+        OR: search
+          ? [
+              { title: { contains: String(search), mode: "insensitive" } },
+              { description: { contains: String(search), mode: "insensitive" } },
+            ]
+          : undefined,
       },
       include: {
         owner: {

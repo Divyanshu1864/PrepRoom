@@ -50,9 +50,10 @@ export const Dashboard: React.FC = () => {
   const [joinRoomId, setJoinRoomId] = useState("");
   const [isJoining, setIsJoining] = useState(false);
 
-  const fetchRooms = async () => {
+  const fetchRooms = async (search = "") => {
     try {
-      const response = await fetch("/api/rooms");
+      const url = search ? `/api/rooms?search=${encodeURIComponent(search)}` : "/api/rooms";
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setRooms(data.rooms || []);
@@ -67,9 +68,14 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  // Debounced search: waits 300ms after user stops typing before calling backend
   useEffect(() => {
-    fetchRooms();
-  }, []);
+    const delayDebounce = setTimeout(() => {
+      fetchRooms(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,11 +173,7 @@ export const Dashboard: React.FC = () => {
     navigate("/login");
   };
 
-  const filteredRooms = rooms.filter(
-    (room) =>
-      room.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (room.description && room.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredRooms = rooms;
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans selection:bg-indigo-500/30 selection:text-white">
