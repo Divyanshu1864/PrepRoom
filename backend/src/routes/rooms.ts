@@ -169,4 +169,36 @@ router.post("/:roomId/join", requireAuth, async (req: Request, res: Response) =>
   }
 });
 
+// DELETE /api/rooms/:roomId - Delete a room (only for the owner)
+router.delete("/:roomId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user!.id;
+
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+    });
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found." });
+    }
+
+    // Check if the user is the owner
+    if (room.ownerId !== userId) {
+      return res.status(403).json({ message: "Forbidden. Only the owner can delete this room." });
+    }
+
+    // Delete room (participants, messages, and problems cascade delete automatically)
+    await prisma.room.delete({
+      where: { id: roomId },
+    });
+
+    return res.status(200).json({ message: "Room deleted successfully." });
+  } catch (error) {
+    console.error("Delete room error:", error);
+    return res.status(500).json({ message: "Unexpected server error." });
+  }
+});
+
 export default router;
+

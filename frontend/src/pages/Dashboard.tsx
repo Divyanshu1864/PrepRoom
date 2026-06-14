@@ -14,6 +14,7 @@ import {
   Search,
   Hash,
   X,
+  Trash2,
 } from "lucide-react";
 
 interface Room {
@@ -135,6 +136,28 @@ export const Dashboard: React.FC = () => {
       toast.error("Connection failed joining room.");
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  const handleDeleteRoom = async (e: React.MouseEvent, roomId: string) => {
+    e.stopPropagation(); // Stop clicking card background from triggering navigation
+    if (!window.confirm("Are you sure you want to delete this room? This cannot be undone.")) return;
+
+    try {
+      const response = await fetch(`/api/rooms/${roomId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Room deleted successfully!");
+        setRooms((prev) => prev.filter((r) => r.id !== roomId));
+      } else {
+        toast.error(data.message || "Failed to delete room.");
+      }
+    } catch (err) {
+      console.error("Delete room error:", err);
+      toast.error("Could not delete room.");
     }
   };
 
@@ -306,9 +329,20 @@ export const Dashboard: React.FC = () => {
                     <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors truncate">
                       {room.title}
                     </h3>
-                    <div className="flex items-center gap-1 text-xs font-semibold text-neutral-400 bg-neutral-800/80 px-2.5 py-1 rounded-full border border-neutral-700">
-                      <Users className="w-3.5 h-3.5" />
-                      {room._count.participants}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 text-xs font-semibold text-neutral-400 bg-neutral-800/80 px-2.5 py-1 rounded-full border border-neutral-700">
+                        <Users className="w-3.5 h-3.5" />
+                        {room._count.participants}
+                      </div>
+                      {room.ownerId === user?.id && (
+                        <button
+                          onClick={(e) => handleDeleteRoom(e, room.id)}
+                          title="Delete Room"
+                          className="p-1 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 rounded transition cursor-pointer z-10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
