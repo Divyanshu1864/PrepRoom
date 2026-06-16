@@ -20,7 +20,14 @@ import {
   Terminal,
   Code,
   AlertCircle,
+  BookOpen,
+  Plus,
+  Trash2,
+  ChevronRight,
+  X,
 } from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Participant {
   userId: string;
@@ -36,6 +43,7 @@ interface RoomDetails {
   title: string;
   description: string | null;
   ownerId: string;
+  mode: "COLLAB" | "INTERVIEW";
   participants: Participant[];
 }
 
@@ -46,6 +54,16 @@ interface ChatMessage {
   username: string;
   createdAt: string;
 }
+
+interface Problem {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  createdAt: string;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const DEFAULT_TEMPLATES: Record<string, string> = {
   javascript: `// JavaScript collaborative workspace
@@ -76,16 +94,25 @@ public class Main {
 };
 
 const RANDOM_COLORS = [
-  "#3b82f6", // Blue
-  "#10b981", // Emerald
-  "#8b5cf6", // Violet
-  "#ec4899", // Pink
-  "#f59e0b", // Amber
-  "#ef4444", // Red
-  "#06b6d4", // Cyan
+  "#3b82f6",
+  "#10b981",
+  "#8b5cf6",
+  "#ec4899",
+  "#f59e0b",
+  "#ef4444",
+  "#06b6d4",
 ];
 
-const getRandomColor = () => RANDOM_COLORS[Math.floor(Math.random() * RANDOM_COLORS.length)];
+const DIFFICULTY_STYLES: Record<Problem["difficulty"], string> = {
+  Easy: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+  Medium: "text-amber-400 bg-amber-400/10 border-amber-400/20",
+  Hard: "text-red-400 bg-red-400/10 border-red-400/20",
+};
+
+const getRandomColor = () =>
+  RANDOM_COLORS[Math.floor(Math.random() * RANDOM_COLORS.length)];
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export const RoomWorkspace: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -114,6 +141,88 @@ export const RoomWorkspace: React.FC = () => {
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"chat" | "participants">("chat");
 
+  // Problem Panel states
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [activeProblem, setActiveProblem] = useState<Problem | null>(null);
+  const [showProblemPanel, setShowProblemPanel] = useState(true);
+  const [problemPanelWidth, setProblemPanelWidth] = useState(320);
+  const isResizingRef = useRef(false);
+
+  const startResizing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", stopResizing);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isResizingRef.current) return;
+    const newWidth = Math.min(Math.max(240, e.clientX), 600);
+    setProblemPanelWidth(newWidth);
+  };
+
+  const stopResizing = () => {
+    isResizingRef.current = false;
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", stopResizing);
+  };
+
+  useEffect(() => {
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", stopResizing);
+    };
+  }, []);
+  const [isAddProblemOpen, setIsAddProblemOpen] = useState(false);
+  const [problemForm, setProblemForm] = useState({
+    title: "",
+    description: "",
+    difficulty: "Easy" as Problem["difficulty"],
+  });
+  const [isSubmittingProblem, setIsSubmittingProblem] = useState(false);
+
+  // Leetcode bank states
+  const [bankSearch, setBankSearch] = useState("");
+  const [bankResults, setBankResults] = useState<any[]>([]);
+  const [isSearchingBank, setIsSearchingBank] = useState(false);
+
+  // Debounced search for question bank
+  useEffect(() => {
+    if (!isAddProblemOpen) {
+      setBankSearch("");
+      setBankResults([]);
+      return;
+    }
+
+    if (!bankSearch.trim()) {
+      setBankResults([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingBank(true);
+      try {
+        const res = await fetch(
+          `/api/problems/bank?search=${encodeURIComponent(bankSearch)}&limit=15`
+        );
+        if (!res.ok) {
+          throw new Error("Failed to fetch questions from bank");
+        }
+        const data = await res.json();
+        if (data.success) {
+          setBankResults(data.questions || []);
+        }
+      } catch (err) {
+        console.error("Error fetching from bank:", err);
+      } finally {
+        setIsSearchingBank(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [bankSearch, isAddProblemOpen]);
+
+
   // Yjs Refs
   const docRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
@@ -126,7 +235,10 @@ export const RoomWorkspace: React.FC = () => {
   // Chat container scroll ref
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch Room Info on Mount
+  const isOwner = room ? user?.id === room.ownerId : false;
+
+  // ─── Fetch Room Info ─────────────────────────────────────────────────────
+
   useEffect(() => {
     const fetchRoomDetails = async () => {
       try {
@@ -154,25 +266,45 @@ export const RoomWorkspace: React.FC = () => {
     fetchRoomDetails();
   }, [roomId, navigate]);
 
-  // Setup Yjs WebSockets
+  // ─── Fetch Problems ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!roomId) return;
+    const fetchProblems = async () => {
+      try {
+        const response = await fetch(`/api/rooms/${roomId}/problems`);
+        if (response.ok) {
+          const data = await response.json();
+          setProblems(data.problems || []);
+          if (data.problems?.length > 0) {
+            setActiveProblem(data.problems[0]);
+          }
+        }
+      } catch (err) {
+        console.error("Problems fetch error:", err);
+      }
+    };
+    fetchProblems();
+  }, [roomId]);
+
+  // ─── Yjs WebSockets ───────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!roomId || !user) return;
 
-    // Create Yjs Doc
     const doc = new Y.Doc();
     docRef.current = doc;
 
-    // Determine WS Connection URL
     const wsHost =
       window.location.hostname === "localhost"
         ? "ws://localhost:5000/yjs"
         : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/yjs`;
 
-    // Initialize Websocket Provider
-    const provider = new WebsocketProvider(wsHost, `preproom-${roomId}`, doc, { connect: true });
+    const provider = new WebsocketProvider(wsHost, `preproom-${roomId}`, doc, {
+      connect: true,
+    });
     providerRef.current = provider;
 
-    // Set User Presence Awareness Info
     const color = getRandomColor();
     provider.awareness.setLocalStateField("user", {
       name: user.name,
@@ -183,7 +315,6 @@ export const RoomWorkspace: React.FC = () => {
       console.log("Yjs status:", event.status);
     });
 
-    // Cleanup on unmount
     return () => {
       if (bindingRef.current) {
         bindingRef.current.destroy();
@@ -201,13 +332,15 @@ export const RoomWorkspace: React.FC = () => {
     };
   }, [roomId, user]);
 
-  // Setup Socket.io for Chat & Active Users
+  // ─── Socket.io Chat & Presence ────────────────────────────────────────────
+
   useEffect(() => {
     if (!roomId || !user) return;
 
-    // Connect to backend port
     const socketHost =
-      window.location.hostname === "localhost" ? "http://localhost:5000" : window.location.origin;
+      window.location.hostname === "localhost"
+        ? "http://localhost:5000"
+        : window.location.origin;
 
     const socket = io(socketHost, {
       withCredentials: true,
@@ -215,14 +348,12 @@ export const RoomWorkspace: React.FC = () => {
     });
     socketRef.current = socket;
 
-    // Emit Join event
     socket.emit("join-room", {
       roomId,
       userId: user.id,
       username: user.name,
     });
 
-    // Message events
     socket.on("chat-history", (history: ChatMessage[]) => {
       setMessages(history);
     });
@@ -240,19 +371,20 @@ export const RoomWorkspace: React.FC = () => {
     };
   }, [roomId, user]);
 
-  // Scroll Chat to Bottom
+  // ─── Chat Scroll ──────────────────────────────────────────────────────────
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Handle Monaco Mounting
+  // ─── Editor Handlers ──────────────────────────────────────────────────────
+
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
 
     if (docRef.current && providerRef.current) {
       const yText = docRef.current.getText("monaco");
 
-      // Check if text is currently empty and seed it with template
       if (yText.toString() === "") {
         yText.insert(0, DEFAULT_TEMPLATES[language] || "");
       }
@@ -267,16 +399,16 @@ export const RoomWorkspace: React.FC = () => {
     }
   };
 
-  // Change Language and Seed Text if Empty
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLang = e.target.value;
     setLanguage(newLang);
 
     if (docRef.current) {
       const yText = docRef.current.getText("monaco");
-      // Replace text if it matches current templates
       const currentVal = yText.toString();
-      const isCurrentTemplate = Object.values(DEFAULT_TEMPLATES).some((t) => t === currentVal) || currentVal === "";
+      const isCurrentTemplate =
+        Object.values(DEFAULT_TEMPLATES).some((t) => t === currentVal) ||
+        currentVal === "";
 
       if (isCurrentTemplate) {
         docRef.current.transact(() => {
@@ -295,6 +427,8 @@ export const RoomWorkspace: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // ─── Chat Handlers ────────────────────────────────────────────────────────
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !socketRef.current || !user || !roomId) return;
@@ -308,6 +442,8 @@ export const RoomWorkspace: React.FC = () => {
     setChatInput("");
   };
 
+  // ─── Code Execution ───────────────────────────────────────────────────────
+
   const runCode = async () => {
     if (!editorRef.current) return;
     const sourceCode = editorRef.current.getValue();
@@ -320,10 +456,7 @@ export const RoomWorkspace: React.FC = () => {
       const response = await fetch("/api/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceCode,
-          language,
-        }),
+        body: JSON.stringify({ sourceCode, language }),
       });
 
       const data = await response.json();
@@ -341,7 +474,9 @@ export const RoomWorkspace: React.FC = () => {
         if (data.status?.id === 3) {
           toast.success("Execution completed successfully!");
         } else {
-          toast.warning(`Execution result: ${data.status?.description || "Failed"}`);
+          toast.warning(
+            `Execution result: ${data.status?.description || "Failed"}`
+          );
         }
       } else {
         toast.error(data.message || "Code compilation failed.");
@@ -354,20 +489,85 @@ export const RoomWorkspace: React.FC = () => {
     }
   };
 
+  // ─── Problem Handlers ─────────────────────────────────────────────────────
+
+  const handleAddProblem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!problemForm.title.trim() || !problemForm.description.trim()) {
+      toast.error("Title and description are required.");
+      return;
+    }
+
+    setIsSubmittingProblem(true);
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/problems`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(problemForm),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        const newProblem = data.problem as Problem;
+        setProblems((prev) => [...prev, newProblem]);
+        setActiveProblem(newProblem);
+        setIsAddProblemOpen(false);
+        setProblemForm({ title: "", description: "", difficulty: "Easy" });
+        toast.success("Problem added to room.");
+      } else {
+        toast.error(data.message || "Failed to add problem.");
+      }
+    } catch (err) {
+      console.error("Add problem error:", err);
+      toast.error("Network error. Please try again.");
+    } finally {
+      setIsSubmittingProblem(false);
+    }
+  };
+
+  const handleDeleteProblem = async (problemId: string) => {
+    try {
+      const response = await fetch(
+        `/api/rooms/${roomId}/problems/${problemId}`,
+        { method: "DELETE" }
+      );
+      if (response.ok) {
+        setProblems((prev) => prev.filter((p) => p.id !== problemId));
+        if (activeProblem?.id === problemId) {
+          const remaining = problems.filter((p) => p.id !== problemId);
+          setActiveProblem(remaining[0] ?? null);
+        }
+        toast.success("Problem removed.");
+      } else {
+        const data = await response.json();
+        toast.error(data.message || "Failed to delete problem.");
+      }
+    } catch (err) {
+      console.error("Delete problem error:", err);
+      toast.error("Network error. Please try again.");
+    }
+  };
+
+  // ─── Loading / Guards ─────────────────────────────────────────────────────
+
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-white">
         <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-neutral-400 font-medium animate-pulse">Entering Workspace...</p>
+        <p className="text-neutral-400 font-medium animate-pulse">
+          Entering Workspace...
+        </p>
       </div>
     );
   }
 
   if (!room) return null;
 
+  // ─── Render ───────────────────────────────────────────────────────────────
+
   return (
     <div className="h-screen flex flex-col bg-neutral-950 text-white font-sans overflow-hidden">
-      {/* Workspace Header */}
+      {/* ── Header ── */}
       <header className="h-14 border-b border-neutral-900 bg-neutral-900/40 backdrop-blur px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <button
@@ -381,12 +581,25 @@ export const RoomWorkspace: React.FC = () => {
               <h1 className="text-sm sm:text-base font-bold truncate max-w-[150px] sm:max-w-[200px]">
                 {room.title}
               </h1>
+              <span
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                  room.mode === "INTERVIEW"
+                    ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                    : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                }`}
+              >
+                {room.mode === "INTERVIEW" ? "Interview" : "Collab"}
+              </span>
               <button
                 onClick={handleCopyId}
                 title="Click to copy Room ID"
                 className="text-[10px] bg-neutral-900 border border-neutral-800 text-neutral-400 px-2 py-0.5 rounded font-mono hover:text-white hover:border-neutral-700 transition flex items-center gap-1 select-all cursor-pointer"
               >
-                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                {copied ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3 h-3" />
+                )}
                 <span className="hidden sm:inline">ID:</span> {roomId}
               </button>
             </div>
@@ -396,24 +609,49 @@ export const RoomWorkspace: React.FC = () => {
           </div>
         </div>
 
-        {/* Configurations / Buttons */}
+        {/* Header Controls */}
         <div className="flex items-center gap-3">
-          {/* Copy Room ID code */}
+          {/* Problem Panel Toggle */}
+          <button
+            onClick={() => setShowProblemPanel((v) => !v)}
+            title={showProblemPanel ? "Hide problems" : "Show problems"}
+            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition cursor-pointer ${
+              showProblemPanel
+                ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-400"
+                : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700"
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Problems</span>
+            {problems.length > 0 && (
+              <span className="bg-indigo-500/30 text-indigo-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                {problems.length}
+              </span>
+            )}
+          </button>
+
+          {/* Copy Invite Code */}
           <button
             onClick={handleCopyId}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 border border-neutral-850 text-neutral-400 hover:text-white rounded-lg text-xs font-semibold hover:border-neutral-700 transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs font-semibold hover:border-neutral-700 transition cursor-pointer"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
             <span className="hidden sm:inline">Invite Code</span>
           </button>
 
           {/* Language Selector */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-neutral-500 hidden md:inline">Language:</span>
+            <span className="text-xs text-neutral-500 hidden md:inline">
+              Language:
+            </span>
             <select
               value={language}
               onChange={handleLanguageChange}
-              className="bg-neutral-900 border border-neutral-850 hover:border-neutral-700 text-neutral-300 text-xs font-semibold px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 text-xs font-semibold px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
               <option value="javascript">JavaScript</option>
               <option value="python">Python</option>
@@ -422,14 +660,14 @@ export const RoomWorkspace: React.FC = () => {
             </select>
           </div>
 
-          {/* Run button */}
+          {/* Run Button */}
           <button
             onClick={runCode}
             disabled={isCompiling}
             className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-lg shadow-indigo-600/10 transition cursor-pointer"
           >
             {isCompiling ? (
-              <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+              <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
             ) : (
               <Play className="w-3.5 h-3.5 fill-current" />
             )}
@@ -438,11 +676,136 @@ export const RoomWorkspace: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Workspace Layout */}
+      {/* ── Main Layout: [Problem Panel] | [Editor] | [Chat] ── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Side: Editor + Output */}
+
+        {/* ── Left: Problem Panel ── */}
+        {showProblemPanel && (
+          <div 
+            style={{ width: `${problemPanelWidth}px` }}
+            className="flex flex-col bg-neutral-950 shrink-0 hidden md:flex min-w-[240px] max-w-[600px] relative"
+          >
+            {/* Panel Header */}
+            <div className="h-11 px-3 border-b border-neutral-900 flex items-center justify-between shrink-0">
+              <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                Problems
+              </span>
+              <div className="flex items-center gap-1">
+                {isOwner && (
+                  <button
+                    onClick={() => setIsAddProblemOpen(true)}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-2 py-0.5 rounded-md transition cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Problem List */}
+            {problems.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-3">
+                  <BookOpen className="w-5 h-5 text-neutral-600" />
+                </div>
+                <p className="text-xs font-medium text-neutral-500">
+                  No problems added yet
+                </p>
+                {isOwner && (
+                  <p className="text-[11px] text-neutral-600 mt-1">
+                    Click "+ Add" to post a problem
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col min-h-0 flex-1">
+                {/* Problem Tabs */}
+                <div className="flex flex-col gap-0.5 p-2 border-b border-neutral-900">
+                  {problems.map((p) => (
+                    <div
+                      key={p.id}
+                      className={`group flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition ${
+                        activeProblem?.id === p.id
+                          ? "bg-indigo-600/15 border border-indigo-500/25"
+                          : "hover:bg-neutral-900/60 border border-transparent"
+                      }`}
+                      onClick={() => setActiveProblem(p)}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ChevronRight
+                          className={`w-3 h-3 shrink-0 transition ${
+                            activeProblem?.id === p.id
+                              ? "text-indigo-400 rotate-90"
+                              : "text-neutral-600"
+                          }`}
+                        />
+                        <span className="text-xs font-medium text-neutral-200 truncate">
+                          {p.title}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                            DIFFICULTY_STYLES[p.difficulty]
+                          }`}
+                        >
+                          {p.difficulty}
+                        </span>
+                        {isOwner && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProblem(p.id);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-0.5 text-neutral-600 hover:text-red-400 transition cursor-pointer"
+                            title="Delete problem"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Active Problem Description */}
+                {activeProblem && (
+                  <div className="flex-1 overflow-y-auto p-3">
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <h2 className="text-sm font-bold text-neutral-100 leading-snug">
+                        {activeProblem.title}
+                      </h2>
+                      <span
+                        className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                          DIFFICULTY_STYLES[activeProblem.difficulty]
+                        }`}
+                      >
+                        {activeProblem.difficulty}
+                      </span>
+                    </div>
+                    <div 
+                      className="leetcode-description"
+                      dangerouslySetInnerHTML={{ __html: activeProblem.description }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {showProblemPanel && (
+          <div
+            onMouseDown={startResizing}
+            className="w-[4px] hover:w-[6px] active:w-[6px] bg-neutral-900 hover:bg-indigo-500/80 active:bg-indigo-500 transition-all cursor-col-resize h-full shrink-0 select-none z-10 hidden md:block"
+          />
+        )}
+
+        {/* ── Centre: Editor + Console ── */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-neutral-900">
-          {/* Editor Container */}
+          {/* Monaco Editor */}
           <div className="flex-1 min-h-0 relative bg-neutral-950">
             <Editor
               height="100%"
@@ -462,7 +825,7 @@ export const RoomWorkspace: React.FC = () => {
             />
           </div>
 
-          {/* Bottom Console / Output */}
+          {/* Console Output */}
           <div className="h-56 border-t border-neutral-900 bg-neutral-950 flex flex-col shrink-0">
             <div className="h-9 border-b border-neutral-900 bg-neutral-900/20 px-4 flex items-center justify-between text-xs text-neutral-400 font-semibold shrink-0">
               <span className="flex items-center gap-1.5">
@@ -471,8 +834,12 @@ export const RoomWorkspace: React.FC = () => {
               </span>
               {consoleOutput && (
                 <div className="flex items-center gap-3 text-neutral-500">
-                  {consoleOutput.time && <span>Time: {consoleOutput.time}s</span>}
-                  {consoleOutput.memory && <span>Mem: {consoleOutput.memory} KB</span>}
+                  {consoleOutput.time && (
+                    <span>Time: {consoleOutput.time}s</span>
+                  )}
+                  {consoleOutput.memory && (
+                    <span>Mem: {consoleOutput.memory} KB</span>
+                  )}
                 </div>
               )}
             </div>
@@ -480,47 +847,50 @@ export const RoomWorkspace: React.FC = () => {
             <div className="flex-1 p-4 overflow-y-auto font-mono text-xs select-text">
               {consoleOutput ? (
                 <div className="space-y-3">
-                  {/* Compilation Error or Status Warning */}
-                  {consoleOutput.statusName && consoleOutput.statusName !== "Accepted" && (
-                    <div className="flex items-center gap-1.5 text-amber-500 font-semibold">
-                      <AlertCircle className="w-4 h-4" />
-                      <span>Status: {consoleOutput.statusName}</span>
-                    </div>
-                  )}
-
-                  {/* Stdout */}
+                  {consoleOutput.statusName &&
+                    consoleOutput.statusName !== "Accepted" && (
+                      <div className="flex items-center gap-1.5 text-amber-500 font-semibold">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Status: {consoleOutput.statusName}</span>
+                      </div>
+                    )}
                   {consoleOutput.stdout && (
                     <div>
-                      <div className="text-neutral-500 font-bold mb-0.5">STDOUT:</div>
+                      <div className="text-neutral-500 font-bold mb-0.5">
+                        STDOUT:
+                      </div>
                       <pre className="text-neutral-200 bg-neutral-900/60 p-2 rounded-lg border border-neutral-900 overflow-x-auto">
                         {consoleOutput.stdout}
                       </pre>
                     </div>
                   )}
-
-                  {/* Stderr */}
                   {consoleOutput.stderr && (
                     <div>
-                      <div className="text-red-500 font-bold mb-0.5">STDERR:</div>
+                      <div className="text-red-500 font-bold mb-0.5">
+                        STDERR:
+                      </div>
                       <pre className="text-red-400 bg-red-950/20 p-2 rounded-lg border border-red-900/30 overflow-x-auto">
                         {consoleOutput.stderr}
                       </pre>
                     </div>
                   )}
-
-                  {/* Compile Output */}
                   {consoleOutput.compile_output && (
                     <div>
-                      <div className="text-neutral-500 font-bold mb-0.5">COMPILE LOGS:</div>
+                      <div className="text-neutral-500 font-bold mb-0.5">
+                        COMPILE LOGS:
+                      </div>
                       <pre className="text-yellow-200/80 bg-neutral-900/60 p-2 rounded-lg border border-neutral-900 overflow-x-auto">
                         {consoleOutput.compile_output}
                       </pre>
                     </div>
                   )}
-
-                  {!consoleOutput.stdout && !consoleOutput.stderr && !consoleOutput.compile_output && (
-                    <div className="text-neutral-500 italic">Code executed successfully with empty output.</div>
-                  )}
+                  {!consoleOutput.stdout &&
+                    !consoleOutput.stderr &&
+                    !consoleOutput.compile_output && (
+                      <div className="text-neutral-500 italic">
+                        Code executed successfully with empty output.
+                      </div>
+                    )}
                 </div>
               ) : (
                 <div className="text-neutral-600 italic flex items-center gap-1.5">
@@ -532,9 +902,9 @@ export const RoomWorkspace: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side: Chat + Participants */}
+        {/* ── Right: Chat + Participants ── */}
         <div className="w-80 flex flex-col bg-neutral-900/30 backdrop-blur shrink-0 hidden md:flex">
-          {/* Tabs header */}
+          {/* Tabs */}
           <div className="h-12 border-b border-neutral-900 flex items-stretch shrink-0">
             <button
               onClick={() => setActiveTab("chat")}
@@ -556,15 +926,14 @@ export const RoomWorkspace: React.FC = () => {
               }`}
             >
               <Users className="w-4 h-4" />
-              Participants ({onlineUserIds.length})
+              People ({onlineUserIds.length})
             </button>
           </div>
 
-          {/* Active Tab View */}
           <div className="flex-1 flex flex-col min-h-0 bg-neutral-950/20">
             {activeTab === "chat" ? (
               <>
-                {/* Chat Message Thread */}
+                {/* Chat Messages */}
                 <div className="flex-1 p-4 overflow-y-auto space-y-4">
                   {messages.map((msg) => {
                     const isSystem = msg.userId === "system";
@@ -573,7 +942,7 @@ export const RoomWorkspace: React.FC = () => {
                     if (isSystem) {
                       return (
                         <div key={msg.id} className="text-center">
-                          <span className="text-[10px] bg-neutral-900 text-neutral-500 px-2.5 py-1 rounded-full border border-neutral-850">
+                          <span className="text-[10px] bg-neutral-900 text-neutral-500 px-2.5 py-1 rounded-full border border-neutral-800">
                             {msg.content}
                           </span>
                         </div>
@@ -583,7 +952,9 @@ export const RoomWorkspace: React.FC = () => {
                     return (
                       <div
                         key={msg.id}
-                        className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                        className={`flex flex-col ${
+                          isMe ? "items-end" : "items-start"
+                        }`}
                       >
                         <span className="text-[10px] text-neutral-500 mb-1 px-1">
                           {isMe ? "You" : msg.username}
@@ -592,7 +963,7 @@ export const RoomWorkspace: React.FC = () => {
                           className={`max-w-[90%] rounded-2xl px-3.5 py-2 text-xs select-text ${
                             isMe
                               ? "bg-indigo-600 text-white rounded-tr-none"
-                              : "bg-neutral-900 text-neutral-200 rounded-tl-none border border-neutral-850"
+                              : "bg-neutral-900 text-neutral-200 rounded-tl-none border border-neutral-800"
                           }`}
                         >
                           {msg.content}
@@ -603,14 +974,17 @@ export const RoomWorkspace: React.FC = () => {
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Chat Input form */}
-                <form onSubmit={handleSendMessage} className="p-3 border-t border-neutral-900 flex gap-2">
+                {/* Chat Input */}
+                <form
+                  onSubmit={handleSendMessage}
+                  className="p-3 border-t border-neutral-900 flex gap-2"
+                >
                   <input
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1 px-3 py-2 bg-neutral-950/80 border border-neutral-850 rounded-xl text-xs text-white placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="flex-1 px-3 py-2 bg-neutral-950/80 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                   <button
                     type="submit"
@@ -623,18 +997,21 @@ export const RoomWorkspace: React.FC = () => {
             ) : (
               /* Participants Tab */
               <div className="flex-1 p-4 overflow-y-auto space-y-3">
-                <h4 className="text-xs font-semibold text-neutral-500 mb-2">Room Registry</h4>
+                <h4 className="text-xs font-semibold text-neutral-500 mb-2">
+                  Room Registry
+                </h4>
                 {room.participants.map((participant) => {
                   const isOnline = onlineUserIds.includes(participant.userId);
-                  const isOwner = participant.userId === room.ownerId;
+                  const isParticipantOwner =
+                    participant.userId === room.ownerId;
 
                   return (
                     <div
                       key={participant.userId}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-neutral-900/30 border border-neutral-850/60"
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-neutral-900/30 border border-neutral-800/60"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-7 h-7 bg-neutral-850 rounded-full flex items-center justify-center font-bold text-xs text-indigo-400 border border-neutral-700 shrink-0">
+                        <div className="w-7 h-7 bg-neutral-800 rounded-full flex items-center justify-center font-bold text-xs text-indigo-400 border border-neutral-700 shrink-0">
                           {participant.user.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -646,16 +1023,17 @@ export const RoomWorkspace: React.FC = () => {
                           </span>
                         </div>
                       </div>
-
                       <div className="flex items-center gap-1.5">
-                        {isOwner && (
+                        {isParticipantOwner && (
                           <span className="text-[9px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md shrink-0">
                             Host
                           </span>
                         )}
                         <span
                           className={`w-2 h-2 rounded-full shrink-0 ${
-                            isOnline ? "bg-emerald-500 animate-pulse" : "bg-neutral-600"
+                            isOnline
+                              ? "bg-emerald-500 animate-pulse"
+                              : "bg-neutral-600"
                           }`}
                         />
                       </div>
@@ -667,6 +1045,181 @@ export const RoomWorkspace: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Add Problem Modal ── */}
+      {isAddProblemOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-lg shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-800">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-indigo-400" />
+                Add Problem
+              </h2>
+              <button
+                onClick={() => setIsAddProblemOpen(false)}
+                className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleAddProblem} className="p-5 space-y-4">
+              {/* LeetCode Search */}
+              <div className="relative">
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5 flex items-center justify-between">
+                  <span>Import LeetCode Question (Optional)</span>
+                  {isSearchingBank && (
+                    <span className="text-[10px] text-indigo-400 animate-pulse">Searching bank...</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={bankSearch}
+                    onChange={(e) => setBankSearch(e.target.value)}
+                    placeholder="Search e.g. Two Sum, Reverse Linked List..."
+                    className="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 pr-10"
+                  />
+                  {bankSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBankSearch("");
+                        setBankResults([]);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown Menu */}
+                {bankResults.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-1.5 max-h-56 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl z-[60] divide-y divide-neutral-900/50 scrollbar-thin">
+                    {bankResults.map((q) => (
+                      <button
+                        key={q.id}
+                        type="button"
+                        onClick={() => {
+                          setProblemForm({
+                            title: q.title,
+                            difficulty: q.difficulty as Problem["difficulty"],
+                            description: q.description,
+                          });
+                          setBankSearch("");
+                          setBankResults([]);
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-neutral-800/40 transition flex items-center justify-between gap-3 cursor-pointer"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">{q.title}</p>
+                          <p className="text-[10px] text-neutral-500">ID: {q.questionId}</p>
+                        </div>
+                        <span
+                          className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                            DIFFICULTY_STYLES[q.difficulty as Problem["difficulty"]] || "border-neutral-800 text-neutral-500"
+                          }`}
+                        >
+                          {q.difficulty}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">
+                  Problem Title <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={problemForm.title}
+                  onChange={(e) =>
+                    setProblemForm((f) => ({ ...f, title: e.target.value }))
+                  }
+                  placeholder="e.g. Two Sum"
+                  className="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+
+              {/* Difficulty */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">
+                  Difficulty
+                </label>
+                <div className="flex gap-2">
+                  {(["Easy", "Medium", "Hard"] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() =>
+                        setProblemForm((f) => ({ ...f, difficulty: d }))
+                      }
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                        problemForm.difficulty === d
+                          ? DIFFICULTY_STYLES[d]
+                          : "border-neutral-800 text-neutral-500 hover:border-neutral-700"
+                      }`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">
+                  Problem Description <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={problemForm.description}
+                  onChange={(e) =>
+                    setProblemForm((f) => ({
+                      ...f,
+                      description: e.target.value,
+                    }))
+                  }
+                  placeholder={`Describe the problem statement, constraints, and examples.\n\nExample:\nGiven an array of integers nums and an integer target, return indices of the two numbers that add up to target.\n\nConstraints:\n- 2 <= nums.length <= 10^4\n- Only one valid answer exists.`}
+                  rows={9}
+                  className="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono"
+                />
+              </div>
+
+              {/* Submit */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsAddProblemOpen(false)}
+                  className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-sm font-semibold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingProblem}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isSubmittingProblem ? (
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Add Problem
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

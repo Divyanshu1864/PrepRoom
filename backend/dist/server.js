@@ -15,6 +15,8 @@ const utils_1 = require("y-websocket/bin/utils");
 const auth_1 = __importDefault(require("./routes/auth"));
 const rooms_1 = __importDefault(require("./routes/rooms"));
 const execute_1 = __importDefault(require("./routes/execute"));
+const problems_1 = __importDefault(require("./routes/problems"));
+const bank_1 = __importDefault(require("./routes/bank"));
 const sanitize_1 = require("./utils/sanitize");
 const path_1 = __importDefault(require("path"));
 const response_1 = require("./middleware/response");
@@ -32,7 +34,9 @@ app.use((0, cookie_parser_1.default)());
 app.use(response_1.responseMiddleware);
 // HTTP Route Handlers
 app.use("/api/auth", auth_1.default);
+app.use("/api/problems/bank", bank_1.default);
 app.use("/api/rooms", rooms_1.default);
+app.use("/api/rooms", problems_1.default);
 app.use("/api/execute", execute_1.default);
 // Serve static assets in production
 if (process.env.NODE_ENV === "production") {

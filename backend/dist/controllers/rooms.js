@@ -41,17 +41,18 @@ const errors_1 = require("../utils/errors");
 const createRoomSchema = zod_1.z.object({
     title: zod_1.z.string().min(2).max(100),
     description: zod_1.z.string().max(500).optional(),
+    mode: zod_1.z.enum(["COLLAB", "INTERVIEW"]).default("COLLAB"),
 });
 /**
  * Creates a collaborative room.
  */
 const create = async (req, res, next) => {
     try {
-        const { title, description } = createRoomSchema.parse(req.body);
+        const { title, description, mode } = createRoomSchema.parse(req.body);
         const sanitizedTitle = (0, sanitize_1.escapeHtml)(title);
         const sanitizedDescription = description ? (0, sanitize_1.escapeHtml)(description) : null;
         const userId = req.user.id;
-        const room = await roomsService.createRoom(userId, sanitizedTitle, sanitizedDescription);
+        const room = await roomsService.createRoom(userId, sanitizedTitle, sanitizedDescription, mode);
         return res.success({ room }, "Room created successfully.", 201);
     }
     catch (error) {

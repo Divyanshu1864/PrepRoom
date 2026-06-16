@@ -127,3 +127,75 @@
     @apply font-sans;
   }
 }
+
+/* LeetCode Rich Description Styling */
+.leetcode-description {
+  @apply text-xs leading-relaxed text-neutral-300;
+}
+
+.leetcode-description p {
+  @apply mb-3 text-neutral-300;
+}
+
+.leetcode-description strong, 
+.leetcode-description b {
+  @apply font-semibold text-neutral-100;
+}
+
+.leetcode-description em {
+  @apply italic text-neutral-200;
+}
+
+.leetcode-description code {
+  @apply font-mono text-[11px] bg-neutral-800 text-neutral-200 px-1 py-0.5 rounded border border-neutral-700/50 mx-0.5;
+}
+
+.leetcode-description pre {
+  @apply font-mono text-[11px] bg-neutral-900 border border-neutral-800 rounded-md p-3 my-3 overflow-x-auto whitespace-pre-wrap break-words max-w-full leading-relaxed text-neutral-200;
+}
+
+.leetcode-description pre code {
+  @apply p-0 m-0 bg-transparent border-none text-neutral-200;
+}
+
+.leetcode-description ul {
+  @apply list-disc pl-5 mb-3 space-y-1 text-neutral-300;
+}
+
+.leetcode-description ol {
+  @apply list-decimal pl-5 mb-3 space-y-1 text-neutral-300;
+}
+
+.leetcode-description li {
+  @apply leading-normal;
+}
+
+.leetcode-description img {
+  @apply max-w-full h-auto rounded my-3 border border-neutral-800/80 mx-auto bg-neutral-900/50 p-2;
+}
+
+.leetcode-description blockquote {
+  @apply border-l-2 border-neutral-700 pl-3 my-3 italic text-neutral-400;
+}
+
+.leetcode-description table {
+  @apply min-w-full divide-y divide-neutral-800 my-3 text-neutral-300;
+}
+
+.leetcode-description th {
+  @apply px-3 py-2 text-left text-[11px] font-bold text-neutral-200 uppercase tracking-wider bg-neutral-900/50;
+}
+
+.leetcode-description td {
+  @apply px-3 py-2 text-[11px] border-b border-neutral-800/60;
+}
+
+.leetcode-description select,
+.leetcode-description input {
+  @apply bg-neutral-900 border border-neutral-800 text-neutral-100 rounded px-2 py-1;
+}
+
+.leetcode-description .example {
+  @apply block font-semibold text-neutral-100 mt-4 mb-2 text-[13px] border-b border-neutral-800/60 pb-1;
+}
+

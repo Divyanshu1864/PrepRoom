@@ -7,6 +7,7 @@ import { AppError } from "../utils/errors";
 const createRoomSchema = z.object({
   title: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
+  mode: z.enum(["COLLAB", "INTERVIEW"]).default("COLLAB"),
 });
 
 /**
@@ -14,12 +15,12 @@ const createRoomSchema = z.object({
  */
 export const create = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { title, description } = createRoomSchema.parse(req.body);
+    const { title, description, mode } = createRoomSchema.parse(req.body);
     const sanitizedTitle = escapeHtml(title);
     const sanitizedDescription = description ? escapeHtml(description) : null;
     const userId = req.user!.id;
 
-    const room = await roomsService.createRoom(userId, sanitizedTitle, sanitizedDescription);
+    const room = await roomsService.createRoom(userId, sanitizedTitle, sanitizedDescription, mode);
     return res.success({ room }, "Room created successfully.", 201);
   } catch (error) {
     next(error);

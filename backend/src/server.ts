@@ -11,6 +11,8 @@ import { setupWSConnection } from "y-websocket/bin/utils";
 import authRouter from "./routes/auth";
 import roomsRouter from "./routes/rooms";
 import executeRouter from "./routes/execute";
+import problemsRouter from "./routes/problems";
+import bankRouter from "./routes/bank";
 import { escapeHtml } from "./utils/sanitize";
 import path from "path";
 import { responseMiddleware } from "./middleware/response";
@@ -34,7 +36,9 @@ app.use(responseMiddleware);
 
 // HTTP Route Handlers
 app.use("/api/auth", authRouter);
+app.use("/api/problems/bank", bankRouter);
 app.use("/api/rooms", roomsRouter);
+app.use("/api/rooms", problemsRouter);
 app.use("/api/execute", executeRouter);
 
 // Serve static assets in production

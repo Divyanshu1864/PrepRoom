@@ -23,6 +23,7 @@ interface Room {
   description: string | null;
   ownerId: string;
   createdAt: string;
+  mode: "COLLAB" | "INTERVIEW";
   owner: {
     id: string;
     name: string;
@@ -44,6 +45,7 @@ export const Dashboard: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createDesc, setCreateDesc] = useState("");
+  const [createMode, setCreateMode] = useState<"COLLAB" | "INTERVIEW">("COLLAB");
   const [isCreating, setIsCreating] = useState(false);
 
   // Join Room State
@@ -89,7 +91,7 @@ export const Dashboard: React.FC = () => {
       const response = await fetch("/api/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: createTitle, description: createDesc }),
+        body: JSON.stringify({ title: createTitle, description: createDesc, mode: createMode }),
       });
 
       const data = await response.json();
@@ -103,6 +105,7 @@ export const Dashboard: React.FC = () => {
         setIsCreateModalOpen(false);
         setCreateTitle("");
         setCreateDesc("");
+        setCreateMode("COLLAB");
         // Redirect to new room
         navigate(`/rooms/${data.room.id}`);
       } else {
@@ -332,6 +335,15 @@ export const Dashboard: React.FC = () => {
                       {room.title}
                     </h3>
                     <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                          room.mode === "INTERVIEW"
+                            ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                            : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                        }`}
+                      >
+                        {room.mode === "INTERVIEW" ? "Interview" : "Collab"}
+                      </span>
                       <div className="flex items-center gap-1 text-xs font-semibold text-neutral-400 bg-neutral-800/80 px-2.5 py-1 rounded-full border border-neutral-700">
                         <Users className="w-3.5 h-3.5" />
                         {room._count.participants}
@@ -392,6 +404,49 @@ export const Dashboard: React.FC = () => {
             </p>
 
             <form onSubmit={handleCreateRoom} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-1.5">
+                  Workspace Mode
+                </label>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setCreateMode("COLLAB")}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-24 ${
+                      createMode === "COLLAB"
+                        ? "bg-indigo-600/10 border-indigo-500 text-white"
+                        : "bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Users className="w-3.5 h-3.5 text-indigo-400" />
+                      Collab Mode
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-neutral-500 font-medium">
+                      Open-ended session. Code and chat freely with peer developers.
+                    </p>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setCreateMode("INTERVIEW")}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-24 ${
+                      createMode === "INTERVIEW"
+                        ? "bg-rose-600/10 border-rose-500 text-white"
+                        : "bg-neutral-950/80 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <BookOpen className="w-3.5 h-3.5 text-rose-400" />
+                      Interview Mode
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-neutral-500 font-medium">
+                      Role-based session. Proctoring features and private interviewer tools.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-neutral-300 mb-1.5">
                   Room Title

@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, RoomMode, ParticipantRole } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -18,15 +18,24 @@ export interface RoomDTO {
 /**
  * Creates a new room and automatically registers the owner as a participant.
  */
-export const createRoom = async (userId: string, title: string, description: string | null) => {
+export const createRoom = async (
+  userId: string,
+  title: string,
+  description: string | null,
+  mode: RoomMode = "COLLAB"
+) => {
+  const initialRole: ParticipantRole = mode === "INTERVIEW" ? "INTERVIEWER" : "OWNER";
+
   return prisma.room.create({
     data: {
       title,
       description,
       ownerId: userId,
+      mode,
       participants: {
         create: {
           userId,
+          role: initialRole,
         },
       },
     },
@@ -119,10 +128,16 @@ export const joinRoom = async (userId: string, roomId: string) => {
     return { alreadyJoined: true };
   }
 
+  let assignedRole: ParticipantRole = "MEMBER";
+  if (room.mode === "INTERVIEW") {
+    assignedRole = room.ownerId === userId ? "INTERVIEWER" : "INTERVIEWEE";
+  }
+
   await prisma.participant.create({
     data: {
       userId,
       roomId,
+      role: assignedRole,
     },
   });
 

@@ -6,15 +6,18 @@ const prisma = new client_1.PrismaClient();
 /**
  * Creates a new room and automatically registers the owner as a participant.
  */
-const createRoom = async (userId, title, description) => {
+const createRoom = async (userId, title, description, mode = "COLLAB") => {
+    const initialRole = mode === "INTERVIEW" ? "INTERVIEWER" : "OWNER";
     return prisma.room.create({
         data: {
             title,
             description,
             ownerId: userId,
+            mode,
             participants: {
                 create: {
                     userId,
+                    role: initialRole,
                 },
             },
         },
@@ -103,10 +106,15 @@ const joinRoom = async (userId, roomId) => {
     if (existingParticipant) {
         return { alreadyJoined: true };
     }
+    let assignedRole = "MEMBER";
+    if (room.mode === "INTERVIEW") {
+        assignedRole = room.ownerId === userId ? "INTERVIEWER" : "INTERVIEWEE";
+    }
     await prisma.participant.create({
         data: {
             userId,
             roomId,
+            role: assignedRole,
         },
     });
     return { alreadyJoined: false };

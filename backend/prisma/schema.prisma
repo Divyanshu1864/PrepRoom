@@ -26,17 +26,19 @@ model Room {
   participants Participant[]
   problems     Problem[]
   messages     Message[]
+  mode         RoomMode      @default(COLLAB)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
 
 model Participant {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   userId    String
   roomId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  role      ParticipantRole @default(MEMBER)
+  createdAt DateTime        @default(now())
 
   @@unique([userId, roomId])
 }
@@ -61,4 +63,27 @@ model Message {
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
+
+model QuestionBank {
+  id          String   @id @default(cuid())
+  questionId  String   @unique
+  title       String
+  description String
+  difficulty  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum RoomMode {
+  COLLAB
+  INTERVIEW
+}
+
+enum ParticipantRole {
+  OWNER
+  INTERVIEWER
+  INTERVIEWEE
+  MEMBER
+}
+
 
