@@ -121,8 +121,9 @@ export const RoomWorkspace: React.FC = () => {
 
   const [room, setRoom] = useState<RoomDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [language, setLanguage] = useState("javascript");
+  const [language, setLanguage] = useState("python");
   const [copied, setCopied] = useState(false);
+  const initialActiveProblemIdRef = useRef<string | null>(null);
 
   // Editor states
   const [isCompiling, setIsCompiling] = useState(false);
@@ -235,6 +236,12 @@ export const RoomWorkspace: React.FC = () => {
   // Chat container scroll ref
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
+  // User Ref to prevent socket useEffect reconnection loops on context re-renders
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   const isOwner = room ? user?.id === room.ownerId : false;
 
   // ─── Fetch Room Info ─────────────────────────────────────────────────────
@@ -268,23 +275,29 @@ export const RoomWorkspace: React.FC = () => {
 
   // ─── Fetch Problems ───────────────────────────────────────────────────────
 
-  useEffect(() => {
+  const fetchProblemsList = async () => {
     if (!roomId) return;
-    const fetchProblems = async () => {
-      try {
-        const response = await fetch(`/api/rooms/${roomId}/problems`);
-        if (response.ok) {
-          const data = await response.json();
-          setProblems(data.problems || []);
-          if (data.problems?.length > 0) {
-            setActiveProblem(data.problems[0]);
-          }
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/problems`);
+      if (response.ok) {
+        const data = await response.json();
+        const loadedProblems = data.problems || [];
+        setProblems(loadedProblems);
+        if (loadedProblems.length > 0) {
+          const initialId = initialActiveProblemIdRef.current;
+          const found = initialId ? loadedProblems.find((p: any) => p.id === initialId) : null;
+          setActiveProblem(found || loadedProblems[0]);
+        } else {
+          setActiveProblem(null);
         }
-      } catch (err) {
-        console.error("Problems fetch error:", err);
       }
-    };
-    fetchProblems();
+    } catch (err) {
+      console.error("Problems fetch error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProblemsList();
   }, [roomId]);
 
   // ─── Yjs WebSockets ───────────────────────────────────────────────────────
@@ -366,10 +379,69 @@ export const RoomWorkspace: React.FC = () => {
       setOnlineUserIds(userIds);
     });
 
+    socket.on("room-state", ({ activeProblemId, language: serverLanguage }) => {
+      if (serverLanguage) {
+        setLanguage(serverLanguage);
+      }
+      if (activeProblemId) {
+        initialActiveProblemIdRef.current = activeProblemId;
+        setProblems((prevProblems) => {
+          const found = prevProblems.find(p => p.id === activeProblemId);
+          if (found) {
+            setActiveProblem(found);
+          }
+          return prevProblems;
+        });
+      }
+    });
+
+    socket.on("problem-selected", (problemId: string) => {
+      initialActiveProblemIdRef.current = problemId;
+      setProblems((prevProblems) => {
+        const found = prevProblems.find(p => p.id === problemId);
+        if (found) {
+          setActiveProblem(found);
+        }
+        return prevProblems;
+      });
+    });
+
+    socket.on("language-changed", (newLang: string) => {
+      setLanguage(newLang);
+    });
+
+    socket.on("problems-updated", () => {
+      fetchProblemsList();
+    });
+
+    socket.on("code-running", ({ senderId }) => {
+      if (senderId === userRef.current?.id) return;
+      console.log("[Socket client] Received code-running event");
+      setIsCompiling(true);
+      setConsoleOutput(null);
+      toast.info("Partner is running code on compile sandbox...");
+    });
+
+    socket.on("code-result", ({ senderId, result, error }) => {
+      if (senderId === userRef.current?.id) return;
+      console.log("[Socket client] Received code-result event:", { result, error });
+      setIsCompiling(false);
+      if (error) {
+        toast.error(error || "Code compilation failed.");
+      } else if (result) {
+        setConsoleOutput(result);
+        if (result.statusName === "Accepted") {
+          toast.success("Execution completed successfully!");
+        } else {
+          toast.warning(`Execution result: ${result.statusName || "Failed"}`);
+        }
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, [roomId, user]);
+  }, [roomId, user?.id]);
 
   // ─── Chat Scroll ──────────────────────────────────────────────────────────
 
@@ -401,21 +473,42 @@ export const RoomWorkspace: React.FC = () => {
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLang = e.target.value;
-    setLanguage(newLang);
 
     if (docRef.current) {
       const yText = docRef.current.getText("monaco");
       const currentVal = yText.toString();
-      const isCurrentTemplate =
-        Object.values(DEFAULT_TEMPLATES).some((t) => t === currentVal) ||
-        currentVal === "";
 
-      if (isCurrentTemplate) {
-        docRef.current.transact(() => {
-          yText.delete(0, yText.length);
-          yText.insert(0, DEFAULT_TEMPLATES[newLang] || "");
-        });
+      const normalize = (str: string) => str.replace(/\r\n/g, "\n").trim();
+      const normalizedCurrent = normalize(currentVal);
+
+      // Check if it's currently the template of the old language, or empty
+      const currentLangTemplate = DEFAULT_TEMPLATES[language];
+      const isUntouched =
+        (currentLangTemplate && normalize(currentLangTemplate) === normalizedCurrent) ||
+        normalizedCurrent === "";
+
+      if (!isUntouched) {
+        const confirmSwitch = window.confirm(
+          "Changing the language will overwrite your current code. Do you want to proceed?"
+        );
+        if (!confirmSwitch) {
+          // Cancelled: do nothing (the dropdown will revert because of controlled state `value={language}`)
+          return;
+        }
       }
+
+      setLanguage(newLang);
+
+      if (socketRef.current) {
+        socketRef.current.emit("change-language", { roomId, language: newLang });
+      }
+
+      docRef.current.transact(() => {
+        yText.delete(0, yText.length);
+        yText.insert(0, DEFAULT_TEMPLATES[newLang] || "");
+      });
+    } else {
+      setLanguage(newLang);
     }
   };
 
@@ -452,6 +545,10 @@ export const RoomWorkspace: React.FC = () => {
     setConsoleOutput(null);
     toast.info("Running code on compile sandbox...");
 
+    if (socketRef.current && user) {
+      socketRef.current.emit("run-code", { roomId, senderId: user.id });
+    }
+
     try {
       const response = await fetch("/api/execute", {
         method: "POST",
@@ -462,14 +559,18 @@ export const RoomWorkspace: React.FC = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setConsoleOutput({
+        const resultData = {
           stdout: data.stdout,
           stderr: data.stderr,
           compile_output: data.compile_output,
           statusName: data.status?.description,
           time: data.time,
           memory: data.memory,
-        });
+        };
+        setConsoleOutput(resultData);
+        if (socketRef.current && user) {
+          socketRef.current.emit("code-result", { roomId, senderId: user.id, result: resultData });
+        }
 
         if (data.status?.id === 3) {
           toast.success("Execution completed successfully!");
@@ -480,10 +581,16 @@ export const RoomWorkspace: React.FC = () => {
         }
       } else {
         toast.error(data.message || "Code compilation failed.");
+        if (socketRef.current && user) {
+          socketRef.current.emit("code-result", { roomId, senderId: user.id, error: data.message || "Code compilation failed." });
+        }
       }
     } catch (err) {
       console.error("Code execution API error:", err);
       toast.error("Sandbox connectivity error. Try again.");
+      if (socketRef.current && user) {
+        socketRef.current.emit("code-result", { roomId, senderId: user.id, error: "Sandbox connectivity error. Try again." });
+      }
     } finally {
       setIsCompiling(false);
     }
@@ -511,6 +618,11 @@ export const RoomWorkspace: React.FC = () => {
         const newProblem = data.problem as Problem;
         setProblems((prev) => [...prev, newProblem]);
         setActiveProblem(newProblem);
+        initialActiveProblemIdRef.current = newProblem.id;
+        if (socketRef.current) {
+          socketRef.current.emit("update-problems", { roomId });
+          socketRef.current.emit("select-problem", { roomId, problemId: newProblem.id });
+        }
         setIsAddProblemOpen(false);
         setProblemForm({ title: "", description: "", difficulty: "Easy" });
         toast.success("Problem added to room.");
@@ -536,6 +648,13 @@ export const RoomWorkspace: React.FC = () => {
         if (activeProblem?.id === problemId) {
           const remaining = problems.filter((p) => p.id !== problemId);
           setActiveProblem(remaining[0] ?? null);
+          initialActiveProblemIdRef.current = remaining[0]?.id ?? null;
+          if (socketRef.current && remaining[0]) {
+            socketRef.current.emit("select-problem", { roomId, problemId: remaining[0].id });
+          }
+        }
+        if (socketRef.current) {
+          socketRef.current.emit("update-problems", { roomId });
         }
         toast.success("Problem removed.");
       } else {
@@ -731,7 +850,13 @@ export const RoomWorkspace: React.FC = () => {
                           ? "bg-indigo-600/15 border border-indigo-500/25"
                           : "hover:bg-neutral-900/60 border border-transparent"
                       }`}
-                      onClick={() => setActiveProblem(p)}
+                      onClick={() => {
+                        setActiveProblem(p);
+                        initialActiveProblemIdRef.current = p.id;
+                        if (socketRef.current) {
+                          socketRef.current.emit("select-problem", { roomId, problemId: p.id });
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <ChevronRight

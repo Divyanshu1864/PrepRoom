@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import cors from "cors";
@@ -73,6 +74,7 @@ const io = new SocketServer(httpServer, {
 });
 
 const activeUsers = new Map<string, { userId: string; username: string; roomId: string }>();
+const roomStates = new Map<string, { activeProblemId?: string; language: string }>();
 
 io.on("connection", (socket) => {
   console.log(`Socket client connected: ${socket.id}`);
@@ -86,6 +88,13 @@ io.on("connection", (socket) => {
 
     activeUsers.set(socket.id, { userId, username: username || "Anonymous", roomId });
     console.log(`User ${username} joined socket room ${roomId}`);
+
+    // Initialize or get room state (defaulting to python)
+    if (!roomStates.has(roomId)) {
+      roomStates.set(roomId, { language: "python" });
+    }
+    const state = roomStates.get(roomId)!;
+    socket.emit("room-state", state);
 
     // Fetch and send message logs from DB
     try {
@@ -127,6 +136,46 @@ io.on("connection", (socket) => {
       .filter((u) => u.roomId === roomId)
       .map((u) => u.userId);
     io.to(socketRoom).emit("room-users", roomActiveUsers);
+  });
+
+  // Handle problem selection synchronization
+  socket.on("select-problem", ({ roomId, problemId }) => {
+    if (!roomId) return;
+    if (!roomStates.has(roomId)) {
+      roomStates.set(roomId, { language: "python" });
+    }
+    roomStates.get(roomId)!.activeProblemId = problemId;
+    socket.to(`room:${roomId}`).emit("problem-selected", problemId);
+  });
+
+  // Handle language selection synchronization
+  socket.on("change-language", ({ roomId, language }) => {
+    if (!roomId) return;
+    if (!roomStates.has(roomId)) {
+      roomStates.set(roomId, { language: "python" });
+    }
+    roomStates.get(roomId)!.language = language;
+    socket.to(`room:${roomId}`).emit("language-changed", language);
+  });
+
+  // Handle updating of problems list
+  socket.on("update-problems", ({ roomId }) => {
+    if (!roomId) return;
+    socket.to(`room:${roomId}`).emit("problems-updated");
+  });
+
+  // Handle code compilation start synchronization
+  socket.on("run-code", ({ roomId, senderId }) => {
+    console.log(`[Socket] run-code event received for room ${roomId} from ${senderId}`);
+    if (!roomId) return;
+    io.to(`room:${roomId}`).emit("code-running", { senderId });
+  });
+
+  // Handle code compilation result synchronization
+  socket.on("code-result", ({ roomId, senderId, result, error }) => {
+    console.log(`[Socket] code-result event received for room ${roomId} from ${senderId}. Error:`, error);
+    if (!roomId) return;
+    io.to(`room:${roomId}`).emit("code-result", { senderId, result, error });
   });
 
   // Handle client broadcasting a message
