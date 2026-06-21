@@ -42,9 +42,13 @@ app.use("/api/rooms", roomsRouter);
 app.use("/api/rooms", problemsRouter);
 app.use("/api/execute", executeRouter);
 
-// Serve static assets in production
-if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "../../frontend/dist");
+import fs from "fs";
+
+// Serve static assets in production if they exist (Unified deployment fallback)
+const distPath = path.join(__dirname, "../../frontend/dist");
+const hasStaticAssets = process.env.NODE_ENV === "production" && fs.existsSync(distPath);
+
+if (hasStaticAssets) {
   app.use(express.static(distPath));
   app.get("*", (req, res) => {
     if (!req.path.startsWith("/api")) {
@@ -52,7 +56,7 @@ if (process.env.NODE_ENV === "production") {
     }
   });
 } else {
-  // Base Route
+  // Base Route for API testing / Healthchecks
   app.get("/", (req, res) => {
     res.send("PrepRoom API is running.");
   });
