@@ -233,11 +233,17 @@ export const RoomWorkspace: React.FC = () => {
   // Socket Ref
   const socketRef = useRef<Socket | null>(null);
 
+  // User Ref to prevent socket useEffect reconnection loops on context re-renders
+  const userRef = useRef(user);
+
   // Chat container scroll ref
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // User Ref to prevent socket useEffect reconnection loops on context re-renders
-  const userRef = useRef(user);
+  // Keep track of current language for the Yjs sync handler
+  const languageRef = useRef(language);
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
   useEffect(() => {
     userRef.current = user;
   }, [user]);
@@ -329,6 +335,15 @@ export const RoomWorkspace: React.FC = () => {
 
     provider.on("status", (event: any) => {
       console.log("Yjs status:", event.status);
+    });
+
+    provider.on("sync", (isSynced: boolean) => {
+      if (isSynced) {
+        const yText = doc.getText("monaco");
+        if (yText.toString().trim() === "") {
+          yText.insert(0, DEFAULT_TEMPLATES[languageRef.current] || "");
+        }
+      }
     });
 
     return () => {
@@ -459,10 +474,6 @@ export const RoomWorkspace: React.FC = () => {
 
     if (docRef.current && providerRef.current) {
       const yText = docRef.current.getText("monaco");
-
-      if (yText.toString() === "") {
-        yText.insert(0, DEFAULT_TEMPLATES[language] || "");
-      }
 
       const binding = new MonacoBinding(
         yText,
