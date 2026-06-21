@@ -308,10 +308,13 @@ export const RoomWorkspace: React.FC = () => {
     const doc = new Y.Doc();
     docRef.current = doc;
 
+    // Use environment variable or fallback to deployed Render URL
+    const backendUrl = import.meta.env.VITE_API_URL || "https://preproom-backend.onrender.com";
+
     const wsHost =
       window.location.hostname === "localhost"
         ? "ws://localhost:5000/yjs"
-        : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/yjs`;
+        : backendUrl.replace(/^http/, "ws") + "/yjs";
 
     const provider = new WebsocketProvider(wsHost, `preproom-${roomId}`, doc, {
       connect: true,
@@ -353,7 +356,7 @@ export const RoomWorkspace: React.FC = () => {
     const socketHost =
       window.location.hostname === "localhost"
         ? "http://localhost:5000"
-        : window.location.origin;
+        : (import.meta.env.VITE_API_URL || "https://preproom-backend.onrender.com");
 
     const socket = io(socketHost, {
       withCredentials: true,
