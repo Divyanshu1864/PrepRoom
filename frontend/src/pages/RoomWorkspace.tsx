@@ -671,9 +671,9 @@ export const RoomWorkspace: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-white">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white">
         <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-neutral-400 font-medium animate-pulse">
+        <p className="text-muted-foreground font-medium animate-pulse">
           Entering Workspace...
         </p>
       </div>
@@ -685,13 +685,13 @@ export const RoomWorkspace: React.FC = () => {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-screen flex flex-col bg-neutral-950 text-white font-sans overflow-hidden">
+    <div className="h-screen flex flex-col bg-background text-white font-sans overflow-hidden">
       {/* ── Header ── */}
-      <header className="h-14 border-b border-neutral-900 bg-neutral-900/40 backdrop-blur px-4 flex items-center justify-between shrink-0">
+      <header className="h-14 border-b border-border bg-card/40 backdrop-blur px-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/dashboard")}
-            className="p-1.5 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition cursor-pointer"
+            className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-white transition cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -712,7 +712,7 @@ export const RoomWorkspace: React.FC = () => {
               <button
                 onClick={handleCopyId}
                 title="Click to copy Room ID"
-                className="text-[10px] bg-neutral-900 border border-neutral-800 text-neutral-400 px-2 py-0.5 rounded font-mono hover:text-white hover:border-neutral-700 transition flex items-center gap-1 select-all cursor-pointer"
+                className="text-[10px] bg-card border border-border text-muted-foreground px-2 py-0.5 rounded font-mono hover:text-white hover:border-neutral-700 transition flex items-center gap-1 select-all cursor-pointer"
               >
                 {copied ? (
                   <Check className="w-3 h-3 text-emerald-400" />
@@ -722,7 +722,7 @@ export const RoomWorkspace: React.FC = () => {
                 <span className="hidden sm:inline">ID:</span> {roomId}
               </button>
             </div>
-            <p className="text-xs text-neutral-500 truncate max-w-[150px] sm:max-w-[300px]">
+            <p className="text-xs text-muted-foreground/80 truncate max-w-[150px] sm:max-w-[300px]">
               {room.description || "No description provided"}
             </p>
           </div>
@@ -737,7 +737,7 @@ export const RoomWorkspace: React.FC = () => {
             className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition cursor-pointer ${
               showProblemPanel
                 ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-400"
-                : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700"
+                : "bg-card border-border text-muted-foreground hover:text-white hover:border-neutral-700"
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
@@ -752,7 +752,7 @@ export const RoomWorkspace: React.FC = () => {
           {/* Copy Invite Code */}
           <button
             onClick={handleCopyId}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs font-semibold hover:border-neutral-700 transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border text-muted-foreground hover:text-white rounded-lg text-xs font-semibold hover:border-neutral-700 transition cursor-pointer"
           >
             {copied ? (
               <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -764,13 +764,13 @@ export const RoomWorkspace: React.FC = () => {
 
           {/* Language Selector */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-neutral-500 hidden md:inline">
+            <span className="text-xs text-muted-foreground/80 hidden md:inline">
               Language:
             </span>
             <select
               value={language}
               onChange={handleLanguageChange}
-              className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 text-xs font-semibold px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-card border border-border hover:border-neutral-700 text-neutral-300 text-xs font-semibold px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
               <option value="javascript">JavaScript</option>
               <option value="python">Python</option>
@@ -802,10 +802,10 @@ export const RoomWorkspace: React.FC = () => {
         {showProblemPanel && (
           <div 
             style={{ width: `${problemPanelWidth}px` }}
-            className="flex flex-col bg-neutral-950 shrink-0 hidden md:flex min-w-[240px] max-w-[600px] relative"
+            className="flex flex-col bg-background shrink-0 hidden md:flex min-w-[240px] max-w-[600px] relative"
           >
             {/* Panel Header */}
-            <div className="h-11 px-3 border-b border-neutral-900 flex items-center justify-between shrink-0">
+            <div className="h-11 px-3 border-b border-border flex items-center justify-between shrink-0">
               <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
                 Problems
@@ -826,14 +826,14 @@ export const RoomWorkspace: React.FC = () => {
             {/* Problem List */}
             {problems.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center mb-3">
-                  <BookOpen className="w-5 h-5 text-neutral-600" />
+                <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center mb-3">
+                  <BookOpen className="w-5 h-5 text-muted-foreground/60" />
                 </div>
-                <p className="text-xs font-medium text-neutral-500">
+                <p className="text-xs font-medium text-muted-foreground/80">
                   No problems added yet
                 </p>
                 {isOwner && (
-                  <p className="text-[11px] text-neutral-600 mt-1">
+                  <p className="text-[11px] text-muted-foreground/60 mt-1">
                     Click "+ Add" to post a problem
                   </p>
                 )}
@@ -841,14 +841,14 @@ export const RoomWorkspace: React.FC = () => {
             ) : (
               <div className="flex flex-col min-h-0 flex-1">
                 {/* Problem Tabs */}
-                <div className="flex flex-col gap-0.5 p-2 border-b border-neutral-900">
+                <div className="flex flex-col gap-0.5 p-2 border-b border-border">
                   {problems.map((p) => (
                     <div
                       key={p.id}
                       className={`group flex items-center justify-between px-2.5 py-2 rounded-lg cursor-pointer transition ${
                         activeProblem?.id === p.id
                           ? "bg-indigo-600/15 border border-indigo-500/25"
-                          : "hover:bg-neutral-900/60 border border-transparent"
+                          : "hover:bg-card/60 border border-transparent"
                       }`}
                       onClick={() => {
                         setActiveProblem(p);
@@ -863,7 +863,7 @@ export const RoomWorkspace: React.FC = () => {
                           className={`w-3 h-3 shrink-0 transition ${
                             activeProblem?.id === p.id
                               ? "text-indigo-400 rotate-90"
-                              : "text-neutral-600"
+                              : "text-muted-foreground/60"
                           }`}
                         />
                         <span className="text-xs font-medium text-neutral-200 truncate">
@@ -884,7 +884,7 @@ export const RoomWorkspace: React.FC = () => {
                               e.stopPropagation();
                               handleDeleteProblem(p.id);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-neutral-600 hover:text-red-400 transition cursor-pointer"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground/60 hover:text-red-400 transition cursor-pointer"
                             title="Delete problem"
                           >
                             <Trash2 className="w-3 h-3" />
@@ -924,14 +924,14 @@ export const RoomWorkspace: React.FC = () => {
         {showProblemPanel && (
           <div
             onMouseDown={startResizing}
-            className="w-[4px] hover:w-[6px] active:w-[6px] bg-neutral-900 hover:bg-indigo-500/80 active:bg-indigo-500 transition-all cursor-col-resize h-full shrink-0 select-none z-10 hidden md:block"
+            className="w-[4px] hover:w-[6px] active:w-[6px] bg-card hover:bg-indigo-500/80 active:bg-indigo-500 transition-all cursor-col-resize h-full shrink-0 select-none z-10 hidden md:block"
           />
         )}
 
         {/* ── Centre: Editor + Console ── */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-neutral-900">
+        <div className="flex-1 flex flex-col min-w-0 border-r border-border">
           {/* Monaco Editor */}
-          <div className="flex-1 min-h-0 relative bg-neutral-950">
+          <div className="flex-1 min-h-0 relative bg-background">
             <Editor
               height="100%"
               language={language === "cpp" ? "cpp" : language}
@@ -951,14 +951,14 @@ export const RoomWorkspace: React.FC = () => {
           </div>
 
           {/* Console Output */}
-          <div className="h-56 border-t border-neutral-900 bg-neutral-950 flex flex-col shrink-0">
-            <div className="h-9 border-b border-neutral-900 bg-neutral-900/20 px-4 flex items-center justify-between text-xs text-neutral-400 font-semibold shrink-0">
+          <div className="h-56 border-t border-border bg-background flex flex-col shrink-0">
+            <div className="h-9 border-b border-border bg-card/20 px-4 flex items-center justify-between text-xs text-muted-foreground font-semibold shrink-0">
               <span className="flex items-center gap-1.5">
                 <Terminal className="w-3.5 h-3.5 text-indigo-400" />
                 Console Sandbox Output
               </span>
               {consoleOutput && (
-                <div className="flex items-center gap-3 text-neutral-500">
+                <div className="flex items-center gap-3 text-muted-foreground/80">
                   {consoleOutput.time && (
                     <span>Time: {consoleOutput.time}s</span>
                   )}
@@ -981,10 +981,10 @@ export const RoomWorkspace: React.FC = () => {
                     )}
                   {consoleOutput.stdout && (
                     <div>
-                      <div className="text-neutral-500 font-bold mb-0.5">
+                      <div className="text-muted-foreground/80 font-bold mb-0.5">
                         STDOUT:
                       </div>
-                      <pre className="text-neutral-200 bg-neutral-900/60 p-2 rounded-lg border border-neutral-900 overflow-x-auto">
+                      <pre className="text-neutral-200 bg-card/60 p-2 rounded-lg border border-border overflow-x-auto">
                         {consoleOutput.stdout}
                       </pre>
                     </div>
@@ -1001,10 +1001,10 @@ export const RoomWorkspace: React.FC = () => {
                   )}
                   {consoleOutput.compile_output && (
                     <div>
-                      <div className="text-neutral-500 font-bold mb-0.5">
+                      <div className="text-muted-foreground/80 font-bold mb-0.5">
                         COMPILE LOGS:
                       </div>
-                      <pre className="text-yellow-200/80 bg-neutral-900/60 p-2 rounded-lg border border-neutral-900 overflow-x-auto">
+                      <pre className="text-yellow-200/80 bg-card/60 p-2 rounded-lg border border-border overflow-x-auto">
                         {consoleOutput.compile_output}
                       </pre>
                     </div>
@@ -1012,13 +1012,13 @@ export const RoomWorkspace: React.FC = () => {
                   {!consoleOutput.stdout &&
                     !consoleOutput.stderr &&
                     !consoleOutput.compile_output && (
-                      <div className="text-neutral-500 italic">
+                      <div className="text-muted-foreground/80 italic">
                         Code executed successfully with empty output.
                       </div>
                     )}
                 </div>
               ) : (
-                <div className="text-neutral-600 italic flex items-center gap-1.5">
+                <div className="text-muted-foreground/60 italic flex items-center gap-1.5">
                   <Code className="w-4 h-4" />
                   Write code and click 'Run Code' to execute in sandbox.
                 </div>
@@ -1028,15 +1028,15 @@ export const RoomWorkspace: React.FC = () => {
         </div>
 
         {/* ── Right: Chat + Participants ── */}
-        <div className="w-80 flex flex-col bg-neutral-900/30 backdrop-blur shrink-0 hidden md:flex">
+        <div className="w-80 flex flex-col bg-card/30 backdrop-blur shrink-0 hidden md:flex">
           {/* Tabs */}
-          <div className="h-12 border-b border-neutral-900 flex items-stretch shrink-0">
+          <div className="h-12 border-b border-border flex items-stretch shrink-0">
             <button
               onClick={() => setActiveTab("chat")}
               className={`flex-1 flex items-center justify-center gap-2 text-xs font-semibold transition cursor-pointer ${
                 activeTab === "chat"
-                  ? "text-indigo-400 border-b-2 border-indigo-500 bg-neutral-900/20"
-                  : "text-neutral-400 hover:text-white"
+                  ? "text-indigo-400 border-b-2 border-indigo-500 bg-card/20"
+                  : "text-muted-foreground hover:text-white"
               }`}
             >
               <MessageSquare className="w-4 h-4" />
@@ -1046,8 +1046,8 @@ export const RoomWorkspace: React.FC = () => {
               onClick={() => setActiveTab("participants")}
               className={`flex-1 flex items-center justify-center gap-2 text-xs font-semibold transition cursor-pointer ${
                 activeTab === "participants"
-                  ? "text-indigo-400 border-b-2 border-indigo-500 bg-neutral-900/20"
-                  : "text-neutral-400 hover:text-white"
+                  ? "text-indigo-400 border-b-2 border-indigo-500 bg-card/20"
+                  : "text-muted-foreground hover:text-white"
               }`}
             >
               <Users className="w-4 h-4" />
@@ -1055,7 +1055,7 @@ export const RoomWorkspace: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0 bg-neutral-950/20">
+          <div className="flex-1 flex flex-col min-h-0 bg-background/20">
             {activeTab === "chat" ? (
               <>
                 {/* Chat Messages */}
@@ -1067,7 +1067,7 @@ export const RoomWorkspace: React.FC = () => {
                     if (isSystem) {
                       return (
                         <div key={msg.id} className="text-center">
-                          <span className="text-[10px] bg-neutral-900 text-neutral-500 px-2.5 py-1 rounded-full border border-neutral-800">
+                          <span className="text-[10px] bg-card text-muted-foreground/80 px-2.5 py-1 rounded-full border border-border">
                             {msg.content}
                           </span>
                         </div>
@@ -1081,14 +1081,14 @@ export const RoomWorkspace: React.FC = () => {
                           isMe ? "items-end" : "items-start"
                         }`}
                       >
-                        <span className="text-[10px] text-neutral-500 mb-1 px-1">
+                        <span className="text-[10px] text-muted-foreground/80 mb-1 px-1">
                           {isMe ? "You" : msg.username}
                         </span>
                         <div
                           className={`max-w-[90%] rounded-2xl px-3.5 py-2 text-xs select-text ${
                             isMe
                               ? "bg-indigo-600 text-white rounded-tr-none"
-                              : "bg-neutral-900 text-neutral-200 rounded-tl-none border border-neutral-800"
+                              : "bg-card text-neutral-200 rounded-tl-none border border-border"
                           }`}
                         >
                           {msg.content}
@@ -1102,14 +1102,14 @@ export const RoomWorkspace: React.FC = () => {
                 {/* Chat Input */}
                 <form
                   onSubmit={handleSendMessage}
-                  className="p-3 border-t border-neutral-900 flex gap-2"
+                  className="p-3 border-t border-border flex gap-2"
                 >
                   <input
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1 px-3 py-2 bg-neutral-950/80 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="flex-1 px-3 py-2 bg-background/80 border border-border rounded-xl text-xs text-white placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                   <button
                     type="submit"
@@ -1122,7 +1122,7 @@ export const RoomWorkspace: React.FC = () => {
             ) : (
               /* Participants Tab */
               <div className="flex-1 p-4 overflow-y-auto space-y-3">
-                <h4 className="text-xs font-semibold text-neutral-500 mb-2">
+                <h4 className="text-xs font-semibold text-muted-foreground/80 mb-2">
                   Room Registry
                 </h4>
                 {room.participants.map((participant) => {
@@ -1133,7 +1133,7 @@ export const RoomWorkspace: React.FC = () => {
                   return (
                     <div
                       key={participant.userId}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-neutral-900/30 border border-neutral-800/60"
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-card/30 border border-border/60"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-7 h-7 bg-neutral-800 rounded-full flex items-center justify-center font-bold text-xs text-indigo-400 border border-neutral-700 shrink-0">
@@ -1143,7 +1143,7 @@ export const RoomWorkspace: React.FC = () => {
                           <p className="text-xs font-medium text-neutral-200 truncate">
                             {participant.user.name}
                           </p>
-                          <span className="text-[10px] text-neutral-500 truncate block">
+                          <span className="text-[10px] text-muted-foreground/80 truncate block">
                             {participant.user.email}
                           </span>
                         </div>
@@ -1174,16 +1174,16 @@ export const RoomWorkspace: React.FC = () => {
       {/* ── Add Problem Modal ── */}
       {isAddProblemOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-lg shadow-2xl">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-800">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-indigo-400" />
                 Add Problem
               </h2>
               <button
                 onClick={() => setIsAddProblemOpen(false)}
-                className="p-1 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition cursor-pointer"
+                className="p-1 hover:bg-muted rounded-lg text-muted-foreground hover:text-white transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1193,7 +1193,7 @@ export const RoomWorkspace: React.FC = () => {
             <form onSubmit={handleAddProblem} className="p-5 space-y-4">
               {/* LeetCode Search */}
               <div className="relative">
-                <label className="block text-xs font-semibold text-neutral-400 mb-1.5 flex items-center justify-between">
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex items-center justify-between">
                   <span>Import LeetCode Question (Optional)</span>
                   {isSearchingBank && (
                     <span className="text-[10px] text-indigo-400 animate-pulse">Searching bank...</span>
@@ -1205,7 +1205,7 @@ export const RoomWorkspace: React.FC = () => {
                     value={bankSearch}
                     onChange={(e) => setBankSearch(e.target.value)}
                     placeholder="Search e.g. Two Sum, Reverse Linked List..."
-                    className="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 pr-10"
+                    className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 pr-10"
                   />
                   {bankSearch && (
                     <button
@@ -1214,7 +1214,7 @@ export const RoomWorkspace: React.FC = () => {
                         setBankSearch("");
                         setBankResults([]);
                       }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/80 hover:text-neutral-300"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1223,7 +1223,7 @@ export const RoomWorkspace: React.FC = () => {
 
                 {/* Dropdown Menu */}
                 {bankResults.length > 0 && (
-                  <div className="absolute left-0 right-0 mt-1.5 max-h-56 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl z-[60] divide-y divide-neutral-900/50 scrollbar-thin">
+                  <div className="absolute left-0 right-0 mt-1.5 max-h-56 overflow-y-auto bg-background border border-border rounded-xl shadow-2xl z-[60] divide-y divide-neutral-900/50 scrollbar-thin">
                     {bankResults.map((q) => (
                       <button
                         key={q.id}
@@ -1237,15 +1237,15 @@ export const RoomWorkspace: React.FC = () => {
                           setBankSearch("");
                           setBankResults([]);
                         }}
-                        className="w-full px-4 py-3 text-left hover:bg-neutral-800/40 transition flex items-center justify-between gap-3 cursor-pointer"
+                        className="w-full px-4 py-3 text-left hover:bg-muted/40 transition flex items-center justify-between gap-3 cursor-pointer"
                       >
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-white truncate">{q.title}</p>
-                          <p className="text-[10px] text-neutral-500">ID: {q.questionId}</p>
+                          <p className="text-[10px] text-muted-foreground/80">ID: {q.questionId}</p>
                         </div>
                         <span
                           className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                            DIFFICULTY_STYLES[q.difficulty as Problem["difficulty"]] || "border-neutral-800 text-neutral-500"
+                            DIFFICULTY_STYLES[q.difficulty as Problem["difficulty"]] || "border-border text-muted-foreground/80"
                           }`}
                         >
                           {q.difficulty}
@@ -1258,7 +1258,7 @@ export const RoomWorkspace: React.FC = () => {
 
               {/* Title */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
                   Problem Title <span className="text-red-400">*</span>
                 </label>
                 <input
@@ -1268,14 +1268,14 @@ export const RoomWorkspace: React.FC = () => {
                     setProblemForm((f) => ({ ...f, title: e.target.value }))
                   }
                   placeholder="e.g. Two Sum"
-                  className="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
 
 
               {/* Difficulty */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
                   Difficulty
                 </label>
                 <div className="flex gap-2">
@@ -1289,7 +1289,7 @@ export const RoomWorkspace: React.FC = () => {
                       className={`flex-1 py-2 rounded-lg text-xs font-bold border transition cursor-pointer ${
                         problemForm.difficulty === d
                           ? DIFFICULTY_STYLES[d]
-                          : "border-neutral-800 text-neutral-500 hover:border-neutral-700"
+                          : "border-border text-muted-foreground/80 hover:border-neutral-700"
                       }`}
                     >
                       {d}
@@ -1300,7 +1300,7 @@ export const RoomWorkspace: React.FC = () => {
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-semibold text-neutral-400 mb-1.5">
+                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
                   Problem Description <span className="text-red-400">*</span>
                 </label>
                 <textarea
@@ -1313,7 +1313,7 @@ export const RoomWorkspace: React.FC = () => {
                   }
                   placeholder={`Describe the problem statement, constraints, and examples.\n\nExample:\nGiven an array of integers nums and an integer target, return indices of the two numbers that add up to target.\n\nConstraints:\n- 2 <= nums.length <= 10^4\n- Only one valid answer exists.`}
                   rows={9}
-                  className="w-full px-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono"
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono"
                 />
               </div>
 
